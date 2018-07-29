@@ -8,35 +8,58 @@ const { parse } = require('querystring');
 const {studentsInfo} = require("./studentsInfo");
 
 const {MongoClient, ObjectID} = require('mongodb');
+const mongoose = require('mongoose');
 
-MongoClient.connect('mongodb://localhost:27017/Integrify',(err, client) => {
-    if(err){
-        console.log('Unable to connect the MongoDB server')
+mongoose.Promise = global.Promise;
+mongoose.connect(process.env.MONGODU_URI || 'mongodb://washera:Asab216216216@ds259111.mlab.com:59111/washera',{ useNewUrlParser: true });
+
+const Trainee = mongoose.model('Trainee',{
+    firstName:{
+        type:String
+
+    },
+    lastName:{
+        type:String
+
+    },
+    title:{
+        type:String
+
+    },
+    nationality:{
+        type:String
+
+    },
+    src:{
+        type:String
+
+    },
+    alt:{
+        type:String
+
+    },
+    skills:{
+        type:Array
+    },
+    whySofterDeveloper:{
+        type:String
+    },
+    longTermVision:{
+        type:String
+    },
+    motivatesMe:{
+        type:String
+    },
+    favoriteQuote:{
+        type:String
+    },
+    joinedOn:{
+        type:String
     }
-    console.log('Connected to the MongoDB server');
-    const db = client.db('Integrify');
-    db.collection('StudentsInfo').insertMany(studentsInfo,(err,data) => {
-        if(err){
-            console.log('Unable to insert data')
-        }
-        console.log(JSON.stringify(data, undefined, 4))
-    });
 
-    db.createCollection("customers", function (err, res) {
-        if (err) throw err;
-        console.log("Collection created!");
-      
-    });
-    db.collection('customers').insertOne({ name: 'Asabeneh' }, (err, res) => {
-        console.log(JSON.stringify(res, undefined, 4))
-    })
+});
 
-    client.close()
-
-
-})
-
-
+// Trainee.collection.insert(studentsInfo)
 const app = express();
 
 app.use((req,res, next) => {
@@ -59,7 +82,15 @@ app.use(fileUpload());
 let individualUser;
 
 app.get('/',(req,res) => {
-    res.render('students',{studentsInfo})
+    Student.find().then((doc) => {
+        if(!doc){
+            res.status(404).send('Not Found')
+        }
+        res.render('students',{studentsInfo: doc})
+    },(e)=> {
+        res.status(400).send(e)
+
+    })
 })
 
 app.get('/students',(req, res) => {
@@ -93,41 +124,47 @@ app.get('/add-student',(req,res) =>{
 
 
 app.post('/students',(req, res) => {
-    let id = studentsInfo.length + 1;
- 
-    // console.log('what is this file', req.files.src);
-    console.log('what is it', req.files);
-    console.log(req.body);
     let skillList = req.body.skills.trim().split(', ');
-    // console.log(skillList)
-  
-     if (!req.files) return res
-         .status(400)
-         .send("No files were uploaded.");
-        let sampleFile = req.files.src;
+    if (!req.files) return res
+        .status(400)
+        .send("No files were uploaded.");
+       let sampleFile = req.files.src;
 
-     // The name of the input field (i.e. "sampleFile") is used to retrieve the uploaded file
-     // Use the mv() method to place the file somewhere on your server
-     sampleFile.mv(
-       __dirname + "/assets/images/" + sampleFile.name,
-       function(err) {
-         if (err) return res.status(500).send(err);
-          req.body._id = id;
-          req.body.src = sampleFile.name;
-          req.body.alt = sampleFile.name.slice(0, sampleFile.name.length-4);
-          req.body.skills = skillList;
+    // The name of the input field (i.e. "sampleFile") is used to retrieve the uploaded file
+    // Use the mv() method to place the file somewhere on your server
+    sampleFile.mv(
+      __dirname + "/assets/images/" + sampleFile.name,
+      function(err) {
+        if (err) return res.status(500).send(err);
 
-             studentsInfo.push(req.body);
-             res.redirect("/");
-       }
-     );
+         req.body.src = sampleFile.name;
+         req.body.alt = sampleFile.name.slice(0, sampleFile.name.length-4);
+         req.body.skills = skillList;
 
-    
-    // const {_id:id, firstName,lastName,title,nationality, whySoftwareDeveloper, favoriteQuote, src, skilss} = req.body;
-    // console.log(req.body)
-    
-    // fs.createWriteStream(__dirname + '/assets/images/' + `${photo}`);
+         const newStudent = new Student({
+           firstName: req.body.firstName,
+           lastName: req.body.lastName,
+           title: req.body.title,
+           nationality: req.body.nationality,
+           src: req.body.src,
+           alt: req.body.alt,
+           skills:req.body.skills,
+           whySofterDeveloper:req.body.whySofterDeveloper,
+           longTermVision:req.body.longTermVision,
+           motivatesMe:req.body.motivatesMe,
+           favoriteQuote:req.body.favoriteQuote,
+           joinOn:req.body.joinedOn
+         });
 
+         newStudent.save().then((doc) => {
+           console.log(JSON.stringify(doc, undefined, 4))
+         },(e) => {
+             console.log('Unable to save')
+         })
+
+            res.redirect("/");
+      }
+    );
 });
 
 app.delete('/students/:id',(req,res) => {
